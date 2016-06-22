@@ -981,6 +981,28 @@ func (db *DB) GetProperty(name string) (value string, err error) {
 	return
 }
 
+// Shards returns per level a slice of keys the minimum keys of each underlying table.
+// This can be used to obtain good ranges to split iterations over.
+// For level 0 it returns all minimum keys followed by all the corresponding maximum keys.
+// (level 0 tables may overlap.)
+func (db *DB) Shards() (keys [][]string) {
+	v := db.s.version()
+	defer v.release()
+	for level, tables := range v.levels {
+		var kk []string
+		for _, t := range tables {
+			kk = append(kk, string(t.imin.ukey()))
+		}
+		if level == 0 {
+			for _, t := range tables {
+				kk = append(kk, string(t.imax.ukey()))
+			}
+		}
+		keys = append(keys, kk)
+	}
+	return
+}
+
 // SizeOf calculates approximate sizes of the given key ranges.
 // The length of the returned sizes are equal with the length of the given
 // ranges. The returned sizes measure storage space usage, so if the user
